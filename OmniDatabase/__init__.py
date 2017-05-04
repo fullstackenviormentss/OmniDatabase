@@ -41,10 +41,10 @@ class Generic(object):
                             p_conn_id,
                             p_alias):
 
-        if p_db_type == 'sqlite':
-            return SQLite(p_service, p_conn_id, p_alias)
         if p_db_type == 'postgresql':
             return PostgreSQL(p_server, p_port, p_service, p_user, p_password, p_schema, p_conn_id, p_alias)
+        if p_db_type == 'sqlite':
+            return SQLite(p_service, p_conn_id, p_alias)
 
 '''
 ------------------------------------------------------------------------
@@ -70,7 +70,6 @@ class PostgreSQL:
         self.v_has_foreign_keys = True
         self.v_has_uniques = True
         self.v_has_indexes = True
-
         self.v_has_update_rule = True
 
         self.v_default_string = "text"
@@ -127,7 +126,6 @@ class PostgreSQL:
         self.v_rename_sequence_command = "alter sequence #p_sequence_name# rename to #p_new_sequence_name#"
         self.v_drop_sequence_command = "drop sequence #p_sequence_name#"
 
-
         self.v_update_rules = [
             "NO ACTION",
 			"RESTRICT",
@@ -142,21 +140,23 @@ class PostgreSQL:
 			"SET DEFAULT",
 			"CASCADE"
         ]
+
         if not p_schema:
             self.v_schema = 'public'
         else:
             self.v_schema = p_schema
 
-    def PrintDatabaseDetails(self):
-        return self.v_server + ":" + self.v_port
+    def GetName(self):
+        return self.v_service
 
     def PrintDatabaseInfo(self):
         return self.v_user + "@" + self.v_service + " - " + self.v_schema
 
-    def GetName(self):
-        return self.v_service
+    def PrintDatabaseDetails(self):
+        return self.v_server + ":" + self.v_port
 
     def HandleUpdateDeleteRules(self, p_update_rule, p_delete_rule):
+
         v_rules = ''
 
         if p_update_rule.strip() != "":
@@ -165,6 +165,25 @@ class PostgreSQL:
             v_rules += " on delete " + p_delete_rule + " "
 
         return v_rules
+
+    def TestConnection(self):
+
+        v_return = ''
+
+        try:
+            self.v_connection.Open()
+
+            v_schema = self.v_connection.Query("select schema_name from information_schema.schemata where lower(schema_name)='" + self.v_schema.lower() + "'")
+            if len(v_schema.Rows) > 0:
+                v_return = "Connection successful."
+            else:
+                "Connection successful but schema '" + self.v_schema + "' does not exist."
+
+            self.v_connection.Close()
+        except Exception as exc:
+            v_return = str(exc)
+
+        return v_return
 
     def QueryTables(self, p_all_schemas=False):
 
@@ -181,7 +200,7 @@ class PostgreSQL:
             from information_schema.tables
             where table_type = 'BASE TABLE'
             {0}
-            order by table_schema,table_name;
+            order by table_schema,table_name
         '''.format(v_filter))
 
     def QueryTablesFields(self, p_table=None):
@@ -345,19 +364,92 @@ class PostgreSQL:
         if p_count != -1:
             v_limit = ' limit ' + p_count
 
-        return self.v_connection.Query(
-            """
+        return self.v_connection.Query('''
             select {0}
             from {1} t
             {2}
             {3}
-            """.format(
+        '''.format(
                 p_column_list,
                 p_table,
                 p_filter,
                 v_limit
             )
         )
+
+    def QueryFunctions(self):
+
+        return self.v_connection.Query('''
+            select n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' as id,
+                   p.proname as name
+            from pg_proc p,
+                 pg_namespace n
+            where p.pronamespace = n.oid
+              and lower(n.nspname) = '{0}'
+            order by 1
+        '''.format(self.v_schema.lower()))
+
+    def QueryFunctionFields(self, p_function):
+
+        return self.v_connection.Query('''
+            select y.type::character varying as type,
+                   y.name
+            from (
+                select 'O' as type,
+                       'return ' || format_type(p.prorettype, null) as name
+                from pg_proc p,
+                     pg_namespace n
+                where p.pronamespace = n.oid
+                  and n.nspname = '{0}'
+                  and n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' = '{1}'
+            ) y
+            union all
+            select x.type::character varying as type,
+                   trim(x.name) as name
+            from (
+                select 'I' as type,
+                unnest(regexp_split_to_array(pg_get_function_identity_arguments('{1}'::regprocedure), ',')) as name
+            ) x
+            where length(trim(x.name)) > 0
+            order by 1 desc, 2 asc
+        '''.format(self.v_schema.lower(), p_function))
+
+    def QueryFunctionDefinition(self, p_function):
+
+        v_tmp = '-- DROP FUNCTION {0};\n\n'.format(p_function)
+        return v_tmp + self.v_connection.Query("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
+
+    def QueryProcedures(self):
+        return None
+
+    def QueryProcedureFields(self, p_procedure):
+        return None
+
+    def QueryProcedureDefinition(self, p_procedure):
+        return None
+
+    def QuerySequences(self, p_sequence=None):
+
+        v_filter = ''
+        if p_sequence:
+            v_filter = "and lower(sequence_name) = '{0}'".format(p_sequence.lower())
+
+        v_table = self.v_connection.Query('''
+            select lower(sequence_name) as sequence_name,
+                   minimum_value,
+                   maximum_value,
+                   0 as current_value,
+                   increment
+            from information_schema.sequences
+            where lower(sequence_schema) = '{0}' {1}
+        '''.format(self.v_schema.lower(), v_filter))
+
+        for i in range(0, len(v_table.Rows)):
+            v_table.Rows[i]['current_value'] = self.v_connection.ExecuteScalar(
+                "select last_value from {0}.{1}".format(self.v_schema, v_table.Rows[i]['sequence_name'])
+            )
+
+        return v_table
 
 '''
 ------------------------------------------------------------------------
@@ -382,28 +474,11 @@ class SQLite:
         self.v_has_indexes = True
         self.v_schema = ''
 
-    def PrintDatabaseDetails(self):
-        return 'Local File'
+    def GetName(self):
+        return self.v_service
 
     def PrintDatabaseInfo(self):
         return self.v_service
 
-    def GetName(self):
-        return self.v_service
-
-    #TODO
-    def QueryTables(self, p_all_schemas=False):
-        return self.v_connection.Query('''
-            select name as table_name
-            from sqlite_master
-            where type='table'
-        ''')
-
-    #TODO
-    def QueryTablesFields(self, p_table=None):
-        return self.v_connection.Query('''
-            select 1 as column_name,
-                   1 as data_type,
-                   1 as data_length,
-                   1 as nullable
-        ''')
+    def PrintDatabaseDetails(self):
+        return 'Local File'

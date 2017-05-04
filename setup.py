@@ -30,10 +30,10 @@ rootdir = os.path.abspath(os.path.dirname(__file__))
 long_description = open(os.path.join(rootdir, 'README.md')).read()
 
 setup(name='OmniDatabase',
-      version='0.2',
+      version='0.3',
       description='Generic database metadata and access provider',
       long_description=long_description,
-      url='http://github.com/wind39/spartacus',
+      url='http://github.com/OmniDB/OmniDatabase',
       author='William Ivanski',
       author_email='william.ivanski@gmail.com',
       license='MIT',
