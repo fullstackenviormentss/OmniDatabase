@@ -414,10 +414,10 @@ class PostgreSQL:
             order by 1 desc, 2 asc
         '''.format(self.v_schema.lower(), p_function))
 
-    def QueryFunctionDefinition(self, p_function):
+    def GetFunctionDefinition(self, p_function):
 
         v_tmp = '-- DROP FUNCTION {0};\n\n'.format(p_function)
-        return v_tmp + self.v_connection.Query("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
+        return v_tmp + self.v_connection.ExecuteScalar("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
 
     def QueryProcedures(self):
         return None
