@@ -30,7 +30,7 @@ rootdir = os.path.abspath(os.path.dirname(__file__))
 long_description = open(os.path.join(rootdir, 'README.md')).read()
 
 setup(name='OmniDatabase',
-      version='0.5',
+      version='0.6',
       description='Generic database metadata and access provider',
       long_description=long_description,
       url='http://github.com/OmniDB/OmniDatabase',
