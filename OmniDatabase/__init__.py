@@ -187,14 +187,17 @@ class PostgreSQL:
 
         return v_return
 
-    def QueryTables(self, p_all_schemas=False):
+    def QueryTables(self, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
 
         if not p_all_schemas:
-            v_filter = "  and lower(table_schema) = '{0}' ".format(str.lower(self.v_schema))
+            if p_schema:
+                v_filter = "and lower(table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(table_schema) = '{0}' ".format(str.lower(self.v_schema))
         else:
-            v_filter = " and lower(table_schema) not in ('information_schema','pg_catalog') "
+            v_filter = "and lower(table_schema) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
             select lower(table_name) as table_name,
@@ -205,15 +208,27 @@ class PostgreSQL:
             order by table_schema,table_name
         '''.format(v_filter))
 
-    def QueryTablesFields(self, p_table=None):
+    def QueryTablesFields(self, p_table=None, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
 
-        if p_table:
-            v_filter = "and lower(c.table_name) = '{0}' ".format(str.lower(p_table))
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(t.table_schema) = '{0}' and lower(c.table_name) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(t.table_schema) = '{0}' and lower(c.table_name) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(t.table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(t.table_schema) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            if p_table:
+                v_filter = "and lower(t.table_schema) not in ('information_schema','pg_catalog') and lower(c.table_name) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(t.table_schema) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
-            SELECT lower(c.table_name) as table_name,
+            select lower(c.table_name) as table_name,
                    lower(c.column_name) as column_name,
                    lower(c.data_type) as data_type,
                    c.is_nullable as nullable,
@@ -222,130 +237,165 @@ class PostgreSQL:
                    c.numeric_scale as data_scale
             from information_schema.columns c
             join information_schema.tables t on (c.table_name = t.table_name and c.table_schema = t.table_schema)
-            where lower(t.table_schema) ='{0}'
-              and t.table_type = 'BASE TABLE'
-            {1}
+            where t.table_type = 'BASE TABLE'
+            {0}
             order by c.table_name, c.ordinal_position
-        '''.format(str.lower(self.v_schema),v_filter))
+        '''.format(v_filter))
 
-    def QueryTablesForeignKeys(self, p_table=None):
+    def QueryTablesForeignKeys(self, p_table=None, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
 
-        if p_table:
-            v_filter = "and lower(KCU1.TABLE_NAME) = '{0}' ".format(str.lower(p_table))
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(rc.constraint_schema) = '{0}' and lower(kcu1.table_name) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(rc.constraint_schema) = '{0}' and lower(kcu1.table_name) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(rc.constraint_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(rc.constraint_schema) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            if p_table:
+                v_filter = "and lower(rc.constraint_schema) not in ('information_schema','pg_catalog') and lower(kcu1.table_name) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(rc.constraint_schema) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
-            SELECT *
-            FROM (SELECT distinct
-            lower(KCU1.CONSTRAINT_NAME) AS constraint_name,
-            lower(KCU1.TABLE_NAME) AS table_name,
-            lower(KCU1.COLUMN_NAME) AS column_name,
-            lower(KCU2.CONSTRAINT_NAME) AS r_constraint_name,
-            lower(KCU2.TABLE_NAME) AS r_table_name,
-            lower(KCU2.COLUMN_NAME) AS r_column_name,
-            lower(KCU1.constraint_schema) as table_schema,
-            lower(KCU2.constraint_schema) as r_table_schema,
-            KCU1.ORDINAL_POSITION,
-            RC.update_rule as update_rule,
-            RC.delete_rule as delete_rule
-            FROM (SELECT *
-                  FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS RC
-                  WHERE lower(RC.constraint_schema) = '{0}') RC
-            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU1 ON KCU1.CONSTRAINT_CATALOG = RC.CONSTRAINT_CATALOG
-            AND KCU1.CONSTRAINT_SCHEMA = RC.CONSTRAINT_SCHEMA
-            AND KCU1.CONSTRAINT_NAME = RC.CONSTRAINT_NAME
-            JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU2
-            ON KCU2.CONSTRAINT_CATALOG = RC.UNIQUE_CONSTRAINT_CATALOG
-            AND KCU2.CONSTRAINT_SCHEMA = RC.UNIQUE_CONSTRAINT_SCHEMA
-            AND KCU2.CONSTRAINT_NAME = RC.UNIQUE_CONSTRAINT_NAME
-            AND KCU2.ORDINAL_POSITION = KCU1.ORDINAL_POSITION
-            {1}
+            select *
+            from (select distinct
+                         lower(kcu1.constraint_name) as constraint_name,
+                         lower(kcu1.table_name) as table_name,
+                         lower(kcu1.column_name) as column_name,
+                         lower(kcu2.constraint_name) as r_constraint_name,
+                         lower(kcu2.table_name) as r_table_name,
+                         lower(kcu2.column_name) as r_column_name,
+                         lower(kcu1.constraint_schema) as table_schema,
+                         lower(kcu2.constraint_schema) as r_table_schema,
+                         kcu1.ordinal_position,
+                         rc.update_rule as update_rule,
+                         rc.delete_rule as delete_rule
+            from information_schema.referential_constraints rc
+            join information_schema.key_column_usage kcu1
+            on kcu1.constraint_catalog = rc.constraint_catalog
+            and kcu1.constraint_schema = rc.constraint_schema
+            and kcu1.constraint_name = rc.constraint_name
+            join information_schema.key_column_usage kcu2
+            on kcu2.constraint_catalog = rc.unique_constraint_catalog
+            and kcu2.constraint_schema = rc.unique_constraint_schema
+            and kcu2.constraint_name = rc.unique_constraint_name
+            and kcu2.ordinal_position = kcu1.ordinal_position
+            where 1 = 1
+            {0}
             ) t
-            order by CONSTRAINT_NAME,
-            TABLE_NAME,
-            ORDINAL_POSITION
-        '''.format(str.lower(self.v_schema),v_filter))
+            order by constraint_name,
+                     table_name,
+                     ordinal_position
+        '''.format(v_filter))
 
-    def QueryTablesPrimaryKeys(self, p_schema=None, p_table=None):
+    def QueryTablesPrimaryKeys(self, p_table=None, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
-        v_curr_schema = ''
 
-        if not p_schema:
-            v_curr_schema = self.v_schema
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(tc.table_schema) = '{0}' and lower(tc.table_name) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(tc.table_schema) = '{0}' and lower(tc.table_name) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(tc.table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(tc.table_schema) = '{0}' ".format(str.lower(self.v_schema))
         else:
-            v_curr_schema = p_schema
-
-        if p_table:
-            v_filter = "and lower(tc.table_name) = '{0}' ".format(str.lower(p_table))
+            if p_table:
+                v_filter = "and lower(tc.table_schema) not in ('information_schema','pg_catalog') and lower(tc.table_name) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(tc.table_schema) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
-            SELECT lower(tc.constraint_name) as constraint_name,
-            lower(kc.column_name) as column_name,
-            lower(tc.table_name) as table_name
-            from
-            information_schema.table_constraints tc,
-            information_schema.key_column_usage kc
-            where
-            tc.constraint_type = 'PRIMARY KEY'
-            and kc.table_name = tc.table_name
+            select lower(tc.constraint_name) as constraint_name,
+                   lower(kc.column_name) as column_name,
+                   lower(tc.table_name) as table_name,
+                   lower(tc.table_schema) as table_schema
+            from information_schema.table_constraints tc
+            join information_schema.key_column_usage kc
+            on kc.table_name = tc.table_name
             and kc.table_schema = tc.table_schema
             and kc.constraint_name = tc.constraint_name
-            and lower(tc.table_schema)='{0}'
-            {1}
+            where tc.constraint_type = 'PRIMARY KEY'
+            {0}
             order by tc.constraint_name,
-            tc.table_name,
-            kc.ordinal_position
-        '''.format(str.lower(v_curr_schema),v_filter))
+                     tc.table_name,
+                     kc.ordinal_position
+        '''.format(v_filter))
 
-    def QueryTablesUniques(self, p_schema=None, p_table=None):
+    def QueryTablesUniques(self, p_table=None, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
-        v_curr_schema = ''
 
-        if not p_schema:
-            v_curr_schema = self.v_schema
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(tc.table_schema) = '{0}' and lower(tc.table_name) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(tc.table_schema) = '{0}' and lower(tc.table_name) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(tc.table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(tc.table_schema) = '{0}' ".format(str.lower(self.v_schema))
         else:
-            v_curr_schema = p_schema
-
-        if p_table:
-            v_filter = "and lower(tc.table_name) = '{0}' ".format(str.lower(p_table))
+            if p_table:
+                v_filter = "and lower(tc.table_schema) not in ('information_schema','pg_catalog') and lower(tc.table_name) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(tc.table_schema) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
-            SELECT lower(tc.constraint_name) as constraint_name,
-            lower(kc.column_name) as column_name,
-            lower(tc.table_name) as table_name
-            from information_schema.table_constraints tc,
-            information_schema.key_column_usage kc
+            select lower(tc.constraint_name) as constraint_name,
+                   lower(kc.column_name) as column_name,
+                   lower(tc.table_name) as table_name,
+                   lower(tc.table_schema) as table_schema
+            from information_schema.table_constraints tc
+            join information_schema.key_column_usage kc
+            on kc.table_name = tc.table_name
+            and kc.table_schema = tc.table_schema
+            and kc.constraint_name = tc.constraint_name
             where tc.constraint_type = 'UNIQUE'
-            and kc.table_name = tc.table_name
-            and kc.table_schema = tc.table_schema
-            and kc.constraint_name = tc.constraint_name
-            and lower(tc.table_schema)='{0}'
-            {1}
+            {0}
             order by tc.constraint_name,
-            tc.table_name,
-            kc.ordinal_position
-        '''.format(str.lower(v_curr_schema),v_filter))
+                     tc.table_name,
+                     kc.ordinal_position
+        '''.format(v_filter))
 
-    def QueryTablesIndexes(self, p_table=None):
+    def QueryTablesIndexes(self, p_table=None, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
 
-        if p_table:
-            v_filter = "and lower(t.tablename) = '{0}' ".format(str.lower(p_table))
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(t.schemaname) = '{0}' and lower(t.tablename) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(t.schemaname) = '{0}' and lower(t.tablename) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(t.schemaname) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(t.schemaname) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            if p_table:
+                v_filter = "and lower(t.schemaname) not in ('information_schema','pg_catalog') and lower(t.tablename) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(t.schemaname) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
-            SELECT lower(t.tablename) as table_name,
-            lower(t.indexname) as index_name,
-            unnest(string_to_array(replace(substr(t.indexdef, strpos(t.indexdef, '(')+1, strpos(t.indexdef, ')')-strpos(t.indexdef, '(')-1), ' ', ''),',')) as column_name,
-            (case when strpos(t.indexdef, 'UNIQUE') > 0 then 'Unique' else 'Non Unique' end) as uniqueness
+            select lower(t.tablename) as table_name,
+                   lower(t.indexname) as index_name,
+                   unnest(string_to_array(replace(substr(t.indexdef, strpos(t.indexdef, '(')+1, strpos(t.indexdef, ')')-strpos(t.indexdef, '(')-1), ' ', ''),',')) as column_name,
+                   (case when strpos(t.indexdef, 'UNIQUE') > 0 then 'Unique' else 'Non Unique' end) as uniqueness,
+                   lower(t.schemaname) as schema_name
             from pg_indexes t
-            where lower(t.schemaname) = '{0}'
-            {1}
-            order by t.tablename, t.indexname
-        '''.format(str.lower(self.v_schema),v_filter))
+            where 1 = 1
+            {0}
+            order by t.tablename,
+                     t.indexname
+        '''.format(v_filter))
 
     def QueryDataLimited(self, p_query, p_count=-1):
 
@@ -355,7 +405,7 @@ class PostgreSQL:
             v_filter = " limit  " + p_count
 
         return self.v_connection.Query('''
-            SELECT *
+            select *
             from ( {0} ) t
             {1}
         '''.format(p_query,v_filter),True)
@@ -379,72 +429,116 @@ class PostgreSQL:
             )
         )
 
-    def QueryFunctions(self):
+    def QueryFunctions(self, p_all_schemas=False, p_schema=None):
+
+        v_filter = ''
+
+        if not p_all_schemas:
+            if p_schema:
+                v_filter = "and lower(n.nspname) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(n.nspname) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            v_filter = "and lower(n.nspname) not in ('information_schema','pg_catalog') "
 
         return self.v_connection.Query('''
             select n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' as id,
-                   p.proname as name
-            from pg_proc p,
-                 pg_namespace n
-            where p.pronamespace = n.oid
-              and lower(n.nspname) = '{0}'
+                   p.proname as name,
+                   lower(n.nspname) as schema_name
+            from pg_proc p
+            join pg_namespace n
+            on p.pronamespace = n.oid
+            where 1 = 1
+            {0}
             order by 1
-        '''.format(self.v_schema.lower()))
+        '''.format(v_filter))
 
-    def QueryFunctionFields(self, p_function):
+    def QueryFunctionFields(self, p_function, p_schema):
 
-        return self.v_connection.Query('''
-            select y.type::character varying as type,
-                   y.name
-            from (
-                select 'O' as type,
-                       'return ' || format_type(p.prorettype, null) as name
-                from pg_proc p,
-                     pg_namespace n
-                where p.pronamespace = n.oid
-                  and n.nspname = '{0}'
-                  and n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' = '{1}'
-            ) y
-            union all
-            select x.type::character varying as type,
-                   trim(x.name) as name
-            from (
-                select 'I' as type,
-                unnest(regexp_split_to_array(pg_get_function_identity_arguments('{1}'::regprocedure), ',')) as name
-            ) x
-            where length(trim(x.name)) > 0
-            order by 1 desc, 2 asc
-        '''.format(self.v_schema.lower(), p_function))
+        if p_schema:
+            return self.v_connection.Query('''
+                select y.type::character varying as type,
+                       y.name
+                from (
+                    select 'O' as type,
+                           'return ' || format_type(p.prorettype, null) as name
+                    from pg_proc p,
+                         pg_namespace n
+                    where p.pronamespace = n.oid
+                      and n.nspname = '{0}'
+                      and n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' = '{1}'
+                ) y
+                union all
+                select x.type::character varying as type,
+                       trim(x.name) as name
+                from (
+                    select 'I' as type,
+                    unnest(regexp_split_to_array(pg_get_function_identity_arguments('{1}'::regprocedure), ',')) as name
+                ) x
+                where length(trim(x.name)) > 0
+                order by 1 desc, 2 asc
+            '''.format(p_schema, p_function))
+        else:
+            return self.v_connection.Query('''
+                select y.type::character varying as type,
+                       y.name
+                from (
+                    select 'O' as type,
+                           'return ' || format_type(p.prorettype, null) as name
+                    from pg_proc p,
+                         pg_namespace n
+                    where p.pronamespace = n.oid
+                      and n.nspname = '{0}'
+                      and n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' = '{1}'
+                ) y
+                union all
+                select x.type::character varying as type,
+                       trim(x.name) as name
+                from (
+                    select 'I' as type,
+                    unnest(regexp_split_to_array(pg_get_function_identity_arguments('{1}'::regprocedure), ',')) as name
+                ) x
+                where length(trim(x.name)) > 0
+                order by 1 desc, 2 asc
+            '''.format(self.v_schema.lower(), p_function))
 
     def GetFunctionDefinition(self, p_function):
 
         v_tmp = '-- DROP FUNCTION {0};\n\n'.format(p_function)
         return v_tmp + self.v_connection.ExecuteScalar("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
 
-    def QueryProcedures(self):
+    def QueryProcedures(self, p_all_schemas=False, p_schema=None):
         return None
 
-    def QueryProcedureFields(self, p_procedure):
+    def QueryProcedureFields(self, p_procedure, p_schema):
         return None
 
     def QueryProcedureDefinition(self, p_procedure):
         return None
 
-    def QuerySequences(self, p_sequence=None):
+    def QuerySequences(self, p_all_schemas=False, p_schema=None):
 
         v_filter = ''
-        if p_sequence:
-            v_filter = "and lower(sequence_name) = '{0}'".format(p_sequence.lower())
+
+        if not p_all_schemas:
+            if p_schema:
+                v_filter = "and lower(sequence_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(sequence_schema) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            v_filter = "and lower(sequence_schema) not in ('information_schema','pg_catalog') "
 
         v_table = self.v_connection.Query('''
             select lower(sequence_name) as sequence_name,
                    minimum_value,
                    maximum_value,
                    0 as current_value,
-                   increment
+                   increment,
+                   lower(sequence_schema) as sequence_schema
             from information_schema.sequences
-            where lower(sequence_schema) = '{0}' {1}
-        '''.format(self.v_schema.lower(), v_filter))
+            where 1 = 1
+            {0}
+        '''.format(v_filter))
 
         for i in range(0, len(v_table.Rows)):
             v_table.Rows[i]['current_value'] = self.v_connection.ExecuteScalar(
@@ -764,6 +858,8 @@ class SQLite:
                 v_index = v_sql.find('(') + 1
                 v_filtered_sql = v_sql[v_index : ]
 
+                v_formatted = v_regex.sub(' ', v_filtered_sql)
+
 
     def QueryTablesIndexes(self, p_table=None):
 
@@ -804,19 +900,19 @@ class SQLite:
     def QueryFunctions(self):
         return None
 
-    def QueryFunctionFields(self, p_function):
+    def QueryFunctionFields(self, p_function=None):
         return None
 
-    def GetFunctionDefinition(self, p_function):
+    def GetFunctionDefinition(self, p_function=None):
         return None
 
     def QueryProcedures(self):
         return None
 
-    def QueryProcedureFields(self, p_procedure):
+    def QueryProcedureFields(self, p_procedure=None):
         return None
 
-    def QueryProcedureDefinition(self, p_procedure):
+    def QueryProcedureDefinition(self, p_procedure=None):
         return None
 
     def QuerySequences(self, p_sequence=None):
