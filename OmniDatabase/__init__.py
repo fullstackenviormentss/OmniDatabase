@@ -25,7 +25,23 @@ SOFTWARE.
 import os.path
 import re
 from collections import OrderedDict
+from enum import Enum
 import Spartacus.Database, Spartacus.Utils
+
+
+'''
+------------------------------------------------------------------------
+Template
+------------------------------------------------------------------------
+'''
+class TemplateType(Enum):
+    EXECUTE = 1
+    SCRIPT = 2
+
+class Template:
+    def __init__(self, p_text, p_type=TemplateType.EXECUTE):
+        self.v_text = p_text
+        self.v_type = p_type
 
 '''
 ------------------------------------------------------------------------
@@ -41,8 +57,8 @@ class Generic(object):
                             p_user,
                             p_password,
                             p_schema,
-                            p_conn_id,
-                            p_alias):
+                            p_conn_id=0,
+                            p_alias=''):
 
         if p_db_type == 'postgresql':
             return PostgreSQL(p_server, p_port, p_service, p_user, p_password, p_schema, p_conn_id, p_alias)
@@ -186,6 +202,34 @@ class PostgreSQL:
             v_return = str(exc)
 
         return v_return
+
+    def QueryRoles(self):
+
+        return self.v_connection.Query('''
+            select rolname as role_name
+            from pg_roles
+        ''')
+
+    def QueryTablespaces(self):
+
+        return self.v_connection.Query('''
+            select spcname as tablespace_name
+            from pg_tablespace
+        ''')
+
+    def QueryDatabases(self):
+
+        return self.v_connection.Query('''
+            select datname as database_name
+            from pg_database
+        ''')
+
+    def QuerySchemas(self):
+
+        return self.v_connection.Query('''
+            select schema_name
+            from information_schema.schemata
+        ''')
 
     def QueryTables(self, p_all_schemas=False, p_schema=None):
 
@@ -547,6 +591,74 @@ class PostgreSQL:
 
         return v_table
 
+    def QueryViews(self, p_all_schemas=False, p_schema=None):
+        pass
+
+    def QueryViewFields(self, p_view, p_schema):
+        pass
+
+    def QueryViewDefinition(self, p_view):
+        pass
+
+    def TemplateRole(self):
+
+        return Template('''CREATE ROLE name
+-- [ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
+-- SUPERUSER | NOSUPERUSER
+-- CREATEDB | NOCREATEDB
+-- CREATEROLE | NOCREATEROLE
+-- INHERIT | NOINHERIT
+-- LOGIN | NOLOGIN
+-- REPLICATION | NOREPLICATION
+-- BYPASSRLS | NOBYPASSRLS
+-- CONNECTION LIMIT connlimit
+-- VALID UNTIL 'timestamp'
+-- IN ROLE role_name [, ...]
+-- IN GROUP role_name [, ...]
+-- ROLE role_name [, ...]
+-- ADMIN role_name [, ...]
+-- USER role_name [, ...]
+-- SYSID uid
+        ''')
+
+    def TemplateTablespace(self):
+
+        return Template('''CREATE TABLESPACE name
+LOCATION 'directory'
+-- OWNER new_owner | CURRENT_USER | SESSION_USER
+-- WITH ( tablespace_option = value [, ... ] )
+        ''')
+
+    def TemplateDatabase(self):
+
+        return Template('''CREATE DATABASE name
+-- OWNER user_name
+-- TEMPLATE template
+-- ENCODING encoding
+-- LC_COLLATE lc_collate
+-- LC_CTYPE lc_ctype
+-- TABLESPACE tablespace
+-- CONNECTION LIMIT connlimit
+        ''')
+
+    def TemplateSchema(self):
+
+        return Template('''CREATE SCHEMA IF NOT EXISTS schema_name
+-- AUTHORIZATION [ GROUP ] user_name | CURRENT_USER | SESSION_USER
+        ''')
+
+    def TemplateSequence(self):
+
+        return Template('''CREATE SEQUENCE IF NOT EXISTS name
+-- INCREMENT BY increment
+-- MINVALUE minvalue | NO MINVALUE
+-- MAXVALUE maxvalue | NO MAXVALUE
+-- START WITH start
+-- CACHE cache
+-- CYCLE
+-- OWNED BY { table_name.column_name | NONE }
+        ''')
+
 '''
 ------------------------------------------------------------------------
 SQLite
@@ -652,6 +764,18 @@ class SQLite:
             v_return = str(exc)
 
         return v_return
+
+    def QueryRoles(self):
+        pass
+
+    def QueryTablespaces(self):
+        pass
+
+    def QueryDatabases(self):
+        pass
+
+    def QuerySchemas(self):
+        pass
 
     def QueryTables(self):
 
@@ -916,4 +1040,13 @@ class SQLite:
         return None
 
     def QuerySequences(self, p_sequence=None):
+        return None
+
+    def QueryViews(self, p_all_schemas=False, p_schema=None):
+        return None
+
+    def QueryViewFields(self, p_view, p_schema):
+        return None
+
+    def QueryViewDefinition(self, p_view):
         return None
