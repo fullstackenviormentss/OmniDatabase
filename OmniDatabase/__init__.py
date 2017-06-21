@@ -586,7 +586,7 @@ class PostgreSQL:
 
         for i in range(0, len(v_table.Rows)):
             v_table.Rows[i]['current_value'] = self.v_connection.ExecuteScalar(
-                "select last_value from {0}.{1}".format(self.v_schema, v_table.Rows[i]['sequence_name'])
+                "select last_value from {0}.{1}".format(v_table.Rows[i]['sequence_schema'], v_table.Rows[i]['sequence_name'])
             )
 
         return v_table
@@ -600,7 +600,7 @@ class PostgreSQL:
     def QueryViewDefinition(self, p_view):
         pass
 
-    def TemplateRole(self):
+    def TemplateCreateRole(self):
 
         return Template('''CREATE ROLE name
 -- [ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
@@ -619,17 +619,25 @@ class PostgreSQL:
 -- ADMIN role_name [, ...]
 -- USER role_name [, ...]
 -- SYSID uid
-        ''')
+''')
 
-    def TemplateTablespace(self):
+    def TemplateDropRole(self):
+
+        return Template('DROP ROLE #role_name#')
+
+    def TemplateCreateTablespace(self):
 
         return Template('''CREATE TABLESPACE name
 LOCATION 'directory'
 -- OWNER new_owner | CURRENT_USER | SESSION_USER
 -- WITH ( tablespace_option = value [, ... ] )
-        ''')
+''')
 
-    def TemplateDatabase(self):
+    def TemplateDropTablespace(self):
+
+        return Template('DROP TABLESPACE #tablespace_name#')
+
+    def TemplateCreateDatabase(self):
 
         return Template('''CREATE DATABASE name
 -- OWNER user_name
@@ -639,17 +647,25 @@ LOCATION 'directory'
 -- LC_CTYPE lc_ctype
 -- TABLESPACE tablespace
 -- CONNECTION LIMIT connlimit
-        ''')
+''')
 
-    def TemplateSchema(self):
+    def TemplateDropDatabase(self):
 
-        return Template('''CREATE SCHEMA IF NOT EXISTS schema_name
+        return Template('DROP DATABASE #database_name#')
+
+    def TemplateCreateSchema(self):
+
+        return Template('''CREATE SCHEMA schema_name
 -- AUTHORIZATION [ GROUP ] user_name | CURRENT_USER | SESSION_USER
-        ''')
+''')
 
-    def TemplateSequence(self):
+    def TemplateDropSchema(self):
 
-        return Template('''CREATE SEQUENCE IF NOT EXISTS name
+        return Template('DROP SCHEMA #schema_name#')
+
+    def TemplateCreateSequence(self):
+
+        return Template('''CREATE SEQUENCE name
 -- INCREMENT BY increment
 -- MINVALUE minvalue | NO MINVALUE
 -- MAXVALUE maxvalue | NO MAXVALUE
@@ -657,7 +673,24 @@ LOCATION 'directory'
 -- CACHE cache
 -- CYCLE
 -- OWNED BY { table_name.column_name | NONE }
-        ''')
+''')
+
+    def TemplateDropSequence(self):
+
+        return Template('DROP SEQUENCE #sequence_name#')
+
+    def TemplateCreateTable(self):
+        pass
+
+    def TemplateDropTable(self):
+
+        return Template('DROP TABLE #table_name#')
+
+    def TemplateCreateIndex(self):
+        pass
+
+    def TemplateDropIndex(self):
+        pass
 
 '''
 ------------------------------------------------------------------------
@@ -766,16 +799,16 @@ class SQLite:
         return v_return
 
     def QueryRoles(self):
-        pass
+        return None
 
     def QueryTablespaces(self):
-        pass
+        return None
 
     def QueryDatabases(self):
-        pass
+        return None
 
     def QuerySchemas(self):
-        pass
+        return None
 
     def QueryTables(self):
 
@@ -1050,3 +1083,45 @@ class SQLite:
 
     def QueryViewDefinition(self, p_view):
         return None
+
+    def TemplateCreateRole(self):
+        return None
+
+    def TemplateDropRole(self):
+        return None
+
+    def TemplateCreateTablespace(self):
+        return None
+
+    def TemplateDropTablespace(self):
+        return None
+
+    def TemplateCreateDatabase(self):
+        return None
+
+    def TemplateDropDatabase(self):
+        return None
+
+    def TemplateCreateSchema(self):
+        return None
+
+    def TemplateDropSchema(self):
+        return None
+
+    def TemplateCreateSequence(self):
+        return None
+
+    def TemplateDropSequence(self):
+        return None
+
+    def TemplateCreateTable(self):
+        pass
+
+    def TemplateDropTable(self):
+        pass
+
+    def TemplateCreateIndex(self):
+        pass
+
+    def TemplateDropIndex(self):
+        pass
