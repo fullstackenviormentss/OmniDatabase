@@ -548,8 +548,7 @@ class PostgreSQL:
 
     def GetFunctionDefinition(self, p_function):
 
-        v_tmp = '-- DROP FUNCTION {0};\n\n'.format(p_function)
-        return v_tmp + self.v_connection.ExecuteScalar("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
+        return self.v_connection.ExecuteScalar("select pg_get_functiondef('{0}'::regprocedure)".format(p_function))
 
     def QueryProcedures(self, p_all_schemas=False, p_schema=None):
         return None
@@ -592,13 +591,68 @@ class PostgreSQL:
         return v_table
 
     def QueryViews(self, p_all_schemas=False, p_schema=None):
-        pass
 
-    def QueryViewFields(self, p_view, p_schema):
-        pass
+        v_filter = ''
 
-    def QueryViewDefinition(self, p_view):
-        pass
+        if not p_all_schemas:
+            if p_schema:
+                v_filter = "and lower(table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(table_schema) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            v_filter = "and lower(table_schema) not in ('information_schema','pg_catalog') "
+
+        return self.v_connection.Query('''
+            select lower(table_name) as table_name,
+                   lower(table_schema) as table_schema
+            from information_schema.views
+            where 1 = 1
+            {0}
+            order by table_schema,table_name
+        '''.format(v_filter))
+
+    def QueryViewFields(self, p_table=None, p_all_schemas=False, p_schema=None):
+
+        v_filter = ''
+
+        if not p_all_schemas:
+            if p_table and p_schema:
+                v_filter = "and lower(t.table_schema) = '{0}' and lower(c.table_name) = '{1}' ".format(str.lower(p_schema), str.lower(p_table))
+            elif p_table:
+                v_filter = "and lower(t.table_schema) = '{0}' and lower(c.table_name) = '{1}' ".format(str.lower(self.v_schema), str.lower(p_table))
+            elif p_schema:
+                v_filter = "and lower(t.table_schema) = '{0}' ".format(str.lower(p_schema))
+            else:
+                v_filter = "and lower(t.table_schema) = '{0}' ".format(str.lower(self.v_schema))
+        else:
+            if p_table:
+                v_filter = "and lower(t.table_schema) not in ('information_schema','pg_catalog') and lower(c.table_name) = {0}".format(str.lower(p_table))
+            else:
+                v_filter = "and lower(t.table_schema) not in ('information_schema','pg_catalog') "
+
+        return self.v_connection.Query('''
+            select lower(c.table_name) as table_name,
+                   lower(c.column_name) as column_name,
+                   lower(c.data_type) as data_type,
+                   c.is_nullable as nullable,
+                   c.character_maximum_length as data_length,
+                   c.numeric_precision as data_precision,
+                   c.numeric_scale as data_scale
+            from information_schema.columns c
+            join information_schema.views t on (c.table_name = t.table_name and c.table_schema = t.table_schema)
+            where 1 = 1
+            {0}
+            order by c.table_name, c.ordinal_position
+        '''.format(v_filter))
+
+    def QueryViewDefinition(self, p_view, p_schema):
+
+        return self.v_connection.ExecuteScalar('''
+            select view_definition
+            from information_schema.views
+            where table_schema = '{0}'
+              and table_name = '{1}'
+        '''.format(p_schema, p_view))
 
     def TemplateCreateRole(self):
 
@@ -661,11 +715,13 @@ LOCATION 'directory'
 
     def TemplateDropSchema(self):
 
-        return Template('DROP SCHEMA #schema_name#')
+        return Template('''DROP SCHEMA #schema_name#
+-- CASCADE
+''')
 
     def TemplateCreateSequence(self):
 
-        return Template('''CREATE SEQUENCE name
+        return Template('''CREATE SEQUENCE #schema_name#.name
 -- INCREMENT BY increment
 -- MINVALUE minvalue | NO MINVALUE
 -- MAXVALUE maxvalue | NO MAXVALUE
@@ -675,16 +731,78 @@ LOCATION 'directory'
 -- OWNED BY { table_name.column_name | NONE }
 ''')
 
+    def TemplateAlterSequence(self):
+
+        return Template('''ALTER SEQUENCE #sequence_name#
+-- INCREMENT BY increment
+-- MINVALUE minvalue | NO MINVALUE
+-- MAXVALUE maxvalue | NO MAXVALUE
+-- START WITH start
+-- RESTART
+-- RESTART WITH restart
+-- CACHE cache
+-- CYCLE
+-- NO CYCLE
+-- OWNED BY { table_name.column_name | NONE }
+-- OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
+-- RENAME TO new_name
+-- SET SCHEMA new_schema
+''')
+
     def TemplateDropSequence(self):
 
-        return Template('DROP SEQUENCE #sequence_name#')
+        return Template('''DROP SEQUENCE #sequence_name#
+-- CASCADE
+''')
+
+    def TemplateCreateFunction(self):
+
+        return Template('''CREATE OR REPLACE FUNCTION #schema_name#.name
+--(
+--    [ argmode ] [ argname ] argtype [ { DEFAULT | = } default_expr ]
+--)
+--RETURNS rettype
+--RETURNS TABLE ( column_name column_type )
+LANGUAGE plpgsql
+--IMMUTABLE | STABLE | VOLATILE
+--STRICT
+--SECURITY DEFINER
+--COST execution_cost
+--ROWS result_rows
+AS
+$function$
+BEGIN
+-- definition
+END;
+$function$
+''')
+
+    def TemplateDropFunction(self):
+
+        return Template('''DROP FUNCTION #function_name#
+-- CASCADE
+''')
+
+    def TemplateCreateView(self):
+
+        return Template('''CREATE OR REPLACE VIEW #schema_name#.name AS
+SELECT ...
+''')
+
+    def TemplateDropView(self):
+
+        return Template('''DROP VIEW #view_name#
+-- CASCADE
+''')
 
     def TemplateCreateTable(self):
         pass
 
     def TemplateDropTable(self):
 
-        return Template('DROP TABLE #table_name#')
+        return Template('''DROP TABLE #table_name#
+-- CASCADE
+''')
 
     def TemplateCreateIndex(self):
         pass
@@ -1111,14 +1229,30 @@ class SQLite:
     def TemplateCreateSequence(self):
         return None
 
+    def TemplateAlterSequence(self):
+        return None
+
     def TemplateDropSequence(self):
+        return None
+
+    def TemplateCreateFunction(self):
+        return None
+
+    def TemplateDropFunction(self):
+        return None
+
+    def TemplateCreateView(self):
+        return None
+
+    def TemplateDropView(self):
         return None
 
     def TemplateCreateTable(self):
         pass
 
     def TemplateDropTable(self):
-        pass
+
+        return Template('DROP TABLE #table_name#')
 
     def TemplateCreateIndex(self):
         pass
