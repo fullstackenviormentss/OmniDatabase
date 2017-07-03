@@ -647,12 +647,16 @@ class PostgreSQL:
 
     def QueryViewDefinition(self, p_view, p_schema):
 
-        return self.v_connection.ExecuteScalar('''
-            select view_definition
-            from information_schema.views
-            where table_schema = '{0}'
-              and table_name = '{1}'
-        '''.format(p_schema, p_view))
+        return '''CREATE OR REPLACE VIEW {0}.{1} AS
+{2}
+'''.format(p_schema, p_view
+        self.v_connection.ExecuteScalar('''
+                select view_definition
+                from information_schema.views
+                where table_schema = '{0}'
+                  and table_name = '{1}'
+            '''.format(p_schema, p_view)
+    ))
 
     def TemplateCreateRole(self):
 
