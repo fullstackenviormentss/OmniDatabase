@@ -60,7 +60,7 @@ class Generic(object):
                             p_alias=''):
 
         if p_db_type == 'postgresql':
-            return PostgreSQL(p_server, p_port, p_service, p_user, p_password, p_schema, p_conn_id, p_alias)
+            return PostgreSQL(p_server, p_port, p_service, p_user, p_password, p_conn_id, p_alias)
         if p_db_type == 'sqlite':
             return SQLite(p_service, p_conn_id, p_alias)
 
