@@ -649,7 +649,7 @@ class PostgreSQL:
 
         return '''CREATE OR REPLACE VIEW {0}.{1} AS
 {2}
-'''.format(p_schema, p_view
+'''.format(p_schema, p_view,
         self.v_connection.ExecuteScalar('''
                 select view_definition
                 from information_schema.views
