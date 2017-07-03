@@ -164,7 +164,7 @@ class PostgreSQL:
         return self.v_service
 
     def PrintDatabaseInfo(self):
-        return self.v_user + "@" + self.v_service + " - " + self.v_schema
+        return self.v_user + "@" + self.v_service
 
     def PrintDatabaseDetails(self):
         return self.v_server + ":" + self.v_port
