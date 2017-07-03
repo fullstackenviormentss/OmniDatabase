@@ -56,7 +56,6 @@ class Generic(object):
                             p_service,
                             p_user,
                             p_password,
-                            p_schema,
                             p_conn_id=0,
                             p_alias=''):
 
@@ -71,7 +70,7 @@ PostgreSQL
 ------------------------------------------------------------------------
 '''
 class PostgreSQL:
-    def __init__(self, p_server, p_port, p_service, p_user, p_password, p_schema, p_conn_id=0, p_alias=''):
+    def __init__(self, p_server, p_port, p_service, p_user, p_password, p_conn_id=0, p_alias=''):
         self.v_alias = p_alias
         self.v_db_type = 'postgresql'
         self.v_conn_id = p_conn_id
@@ -159,10 +158,7 @@ class PostgreSQL:
 			"CASCADE"
         ]
 
-        if not p_schema:
-            self.v_schema = 'public'
-        else:
-            self.v_schema = p_schema
+        self.v_schema = 'public'
 
     def GetName(self):
         return self.v_service
@@ -191,11 +187,9 @@ class PostgreSQL:
         try:
             self.v_connection.Open()
 
-            v_schema = self.v_connection.Query("select schema_name from information_schema.schemata where lower(schema_name)='" + self.v_schema.lower() + "'")
+            v_schema = self.QuerySchemas()
             if len(v_schema.Rows) > 0:
-                v_return = "Connection successful."
-            else:
-                "Connection successful but schema '" + self.v_schema + "' does not exist."
+                v_return = 'Connection successful.'
 
             self.v_connection.Close()
         except Exception as exc:
