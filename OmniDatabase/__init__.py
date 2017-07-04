@@ -655,22 +655,42 @@ class PostgreSQL:
     def TemplateCreateRole(self):
 
         return Template('''CREATE ROLE name
--- [ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
--- SUPERUSER | NOSUPERUSER
--- CREATEDB | NOCREATEDB
--- CREATEROLE | NOCREATEROLE
--- INHERIT | NOINHERIT
--- LOGIN | NOLOGIN
--- REPLICATION | NOREPLICATION
--- BYPASSRLS | NOBYPASSRLS
--- CONNECTION LIMIT connlimit
--- VALID UNTIL 'timestamp'
--- IN ROLE role_name [, ...]
--- IN GROUP role_name [, ...]
--- ROLE role_name [, ...]
--- ADMIN role_name [, ...]
--- USER role_name [, ...]
--- SYSID uid
+--[ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
+--SUPERUSER | NOSUPERUSER
+--CREATEDB | NOCREATEDB
+--CREATEROLE | NOCREATEROLE
+--INHERIT | NOINHERIT
+--LOGIN | NOLOGIN
+--REPLICATION | NOREPLICATION
+--BYPASSRLS | NOBYPASSRLS
+--CONNECTION LIMIT connlimit
+--VALID UNTIL 'timestamp'
+--IN ROLE role_name [, ...]
+--IN GROUP role_name [, ...]
+--ROLE role_name [, ...]
+--ADMIN role_name [, ...]
+--USER role_name [, ...]
+--SYSID uid
+''')
+
+    def TemplateAlterRole(self):
+
+        return Template('''ALTER ROLE #role_name#
+--SUPERUSER | NOSUPERUSER
+--CREATEDB | NOCREATEDB
+--CREATEROLE | NOCREATEROLE
+--INHERIT | NOINHERIT
+--LOGIN | NOLOGIN
+--REPLICATION | NOREPLICATION
+--BYPASSRLS | NOBYPASSRLS
+--CONNECTION LIMIT connlimit
+--[ ENCRYPTED | UNENCRYPTED ] PASSWORD 'password'
+--VALID UNTIL 'timestamp'
+--RENAME TO new_name
+--[ IN DATABASE database_name ] SET configuration_parameter TO { value | DEFAULT }
+--[ IN DATABASE database_name ] SET configuration_parameter FROM CURRENT
+--[ IN DATABASE database_name ] RESET configuration_parameter
+--[ IN DATABASE database_name ] RESET ALL
 ''')
 
     def TemplateDropRole(self):
@@ -681,8 +701,21 @@ class PostgreSQL:
 
         return Template('''CREATE TABLESPACE name
 LOCATION 'directory'
--- OWNER new_owner | CURRENT_USER | SESSION_USER
--- WITH ( tablespace_option = value [, ... ] )
+--OWNER new_owner | CURRENT_USER | SESSION_USER
+--WITH ( tablespace_option = value [, ... ] )
+''')
+
+    def TemplateAlterTablespace(self):
+
+        return Template('''ALTER TABLESPACE #tablespace_name#
+--RENAME TO new_name
+--OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
+--SET seq_page_cost = value
+--RESET seq_page_cost
+--SET random_page_cost = value
+--RESET random_page_cost
+--SET effective_io_concurrency = value
+--RESET effective_io_concurrency
 ''')
 
     def TemplateDropTablespace(self):
@@ -692,13 +725,28 @@ LOCATION 'directory'
     def TemplateCreateDatabase(self):
 
         return Template('''CREATE DATABASE name
--- OWNER user_name
--- TEMPLATE template
--- ENCODING encoding
--- LC_COLLATE lc_collate
--- LC_CTYPE lc_ctype
--- TABLESPACE tablespace
--- CONNECTION LIMIT connlimit
+--OWNER user_name
+--TEMPLATE template
+--ENCODING encoding
+--LC_COLLATE lc_collate
+--LC_CTYPE lc_ctype
+--TABLESPACE tablespace
+--CONNECTION LIMIT connlimit
+''')
+
+    def TemplateAlterDatabase(self):
+
+        return Template('''ALTER DATABASE #database_name#
+--ALLOW_CONNECTIONS allowconn
+--CONNECTION LIMIT connlimit
+--IS_TEMPLATE istemplate
+--RENAME TO new_name
+--OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
+--SET TABLESPACE new_tablespace
+--SET configuration_parameter TO { value | DEFAULT }
+--SET configuration_parameter FROM CURRENT
+--RESET configuration_parameter
+--RESET ALL
 ''')
 
     def TemplateDropDatabase(self):
@@ -708,43 +756,50 @@ LOCATION 'directory'
     def TemplateCreateSchema(self):
 
         return Template('''CREATE SCHEMA schema_name
--- AUTHORIZATION [ GROUP ] user_name | CURRENT_USER | SESSION_USER
+--AUTHORIZATION [ GROUP ] user_name | CURRENT_USER | SESSION_USER
+''')
+
+    def TemplateAlterSchema(self):
+
+        return Template('''ALTER SCHEMA #schema_name#
+--RENAME TO new_name
+--OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
 ''')
 
     def TemplateDropSchema(self):
 
         return Template('''DROP SCHEMA #schema_name#
--- CASCADE
+--CASCADE
 ''')
 
     def TemplateCreateSequence(self):
 
         return Template('''CREATE SEQUENCE #schema_name#.name
--- INCREMENT BY increment
--- MINVALUE minvalue | NO MINVALUE
--- MAXVALUE maxvalue | NO MAXVALUE
--- START WITH start
--- CACHE cache
--- CYCLE
--- OWNED BY { table_name.column_name | NONE }
+--INCREMENT BY increment
+--MINVALUE minvalue | NO MINVALUE
+--MAXVALUE maxvalue | NO MAXVALUE
+--START WITH start
+--CACHE cache
+--CYCLE
+--OWNED BY { table_name.column_name | NONE }
 ''')
 
     def TemplateAlterSequence(self):
 
         return Template('''ALTER SEQUENCE #sequence_name#
--- INCREMENT BY increment
--- MINVALUE minvalue | NO MINVALUE
--- MAXVALUE maxvalue | NO MAXVALUE
--- START WITH start
--- RESTART
--- RESTART WITH restart
--- CACHE cache
--- CYCLE
--- NO CYCLE
--- OWNED BY { table_name.column_name | NONE }
--- OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
--- RENAME TO new_name
--- SET SCHEMA new_schema
+--INCREMENT BY increment
+--MINVALUE minvalue | NO MINVALUE
+--MAXVALUE maxvalue | NO MAXVALUE
+--START WITH start
+--RESTART
+--RESTART WITH restart
+--CACHE cache
+--CYCLE
+--NO CYCLE
+--OWNED BY { table_name.column_name | NONE }
+--OWNER TO { new_owner | CURRENT_USER | SESSION_USER }
+--RENAME TO new_name
+--SET SCHEMA new_schema
 ''')
 
     def TemplateDropSequence(self):
@@ -778,7 +833,7 @@ $function$
     def TemplateDropFunction(self):
 
         return Template('''DROP FUNCTION #function_name#
--- CASCADE
+--CASCADE
 ''')
 
     def TemplateCreateView(self):
@@ -790,10 +845,13 @@ SELECT ...
     def TemplateDropView(self):
 
         return Template('''DROP VIEW #view_name#
--- CASCADE
+--CASCADE
 ''')
 
     def TemplateCreateTable(self):
+        pass
+
+    def TemplateAlterTable(self):
         pass
 
     def TemplateDropTable(self):
@@ -803,6 +861,9 @@ SELECT ...
 ''')
 
     def TemplateCreateIndex(self):
+        pass
+
+    def TemplateAlterIndex(self):
         pass
 
     def TemplateDropIndex(self):
@@ -1209,16 +1270,25 @@ class SQLite:
     def TemplateCreateTablespace(self):
         return None
 
+    def TemplateAlterTablespace(self):
+        return None
+
     def TemplateDropTablespace(self):
         return None
 
     def TemplateCreateDatabase(self):
         return None
 
+    def TemplateAlterDatabase(self):
+        return None
+
     def TemplateDropDatabase(self):
         return None
 
     def TemplateCreateSchema(self):
+        return None
+
+    def TemplateAlterSchema(self):
         return None
 
     def TemplateDropSchema(self):
@@ -1246,6 +1316,9 @@ class SQLite:
         return None
 
     def TemplateCreateTable(self):
+        pass
+
+    def TemplateAlterTable(self):
         pass
 
     def TemplateDropTable(self):
