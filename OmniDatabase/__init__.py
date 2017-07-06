@@ -202,6 +202,7 @@ class PostgreSQL:
         return self.v_connection.Query('''
             select rolname as role_name
             from pg_roles
+            order by rolname
         ''')
 
     def QueryTablespaces(self):
@@ -209,20 +210,56 @@ class PostgreSQL:
         return self.v_connection.Query('''
             select spcname as tablespace_name
             from pg_tablespace
+            order by spcname
         ''')
 
     def QueryDatabases(self):
 
         return self.v_connection.Query('''
+            select database_name
+            from (
+            select datname as database_name,
+                   1 as sort
+            from pg_database
+            where datname = 'postgres'
+            union all
+            select database_name,
+                   1 + row_number() over() as sort
+            from (
             select datname as database_name
             from pg_database
+            where not datistemplate
+              and datname <> 'postgres'
+            order by datname asc
+            ) x
+            ) y
+            order by sort
         ''')
 
     def QuerySchemas(self):
 
         return self.v_connection.Query('''
             select schema_name
+            from (
+            select schema_name,
+                   row_number() over() as sort
+            from (
+            select schema_name
             from information_schema.schemata
+            where schema_name in ('public', 'pg_catalog', 'information_schema')
+            order by schema_name desc
+            ) x
+            union all
+            select schema_name,
+                   3 + row_number() over() as sort
+            from (
+            select schema_name
+            from information_schema.schemata
+            where schema_name not in ('public', 'pg_catalog', 'information_schema')
+            order by schema_name asc
+            ) x
+            ) y
+            order by sort
         ''')
 
     def QueryTables(self, p_all_schemas=False, p_schema=None):
@@ -243,7 +280,8 @@ class PostgreSQL:
             from information_schema.tables
             where table_type = 'BASE TABLE'
             {0}
-            order by table_schema,table_name
+            order by table_schema,
+                     table_name
         '''.format(v_filter))
 
     def QueryTablesFields(self, p_table=None, p_all_schemas=False, p_schema=None):
@@ -575,6 +613,7 @@ class PostgreSQL:
             from information_schema.sequences
             where 1 = 1
             {0}
+            order by 1
         '''.format(v_filter))
 
         for i in range(0, len(v_table.Rows)):
@@ -602,7 +641,7 @@ class PostgreSQL:
             from information_schema.views
             where 1 = 1
             {0}
-            order by table_schema,table_name
+            order by table_schema, table_name
         '''.format(v_filter))
 
     def QueryViewFields(self, p_table=None, p_all_schemas=False, p_schema=None):
