@@ -203,7 +203,7 @@ class PostgreSQL:
             select rolname as role_name
             from pg_roles
             order by rolname
-        ''')
+        ''', True)
 
     def QueryTablespaces(self):
 
@@ -211,7 +211,7 @@ class PostgreSQL:
             select spcname as tablespace_name
             from pg_tablespace
             order by spcname
-        ''')
+        ''', True)
 
     def QueryDatabases(self):
 
@@ -234,7 +234,7 @@ class PostgreSQL:
             ) x
             ) y
             order by sort
-        ''')
+        ''', True)
 
     def QuerySchemas(self):
 
@@ -260,7 +260,7 @@ class PostgreSQL:
             ) x
             ) y
             order by sort
-        ''')
+        ''', True)
 
     def QueryTables(self, p_all_schemas=False, p_schema=None):
 
@@ -282,7 +282,7 @@ class PostgreSQL:
             {0}
             order by table_schema,
                      table_name
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryTablesFields(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -316,7 +316,7 @@ class PostgreSQL:
             where t.table_type = 'BASE TABLE'
             {0}
             order by c.table_name, c.ordinal_position
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryTablesForeignKeys(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -367,7 +367,7 @@ class PostgreSQL:
             order by constraint_name,
                      table_name,
                      ordinal_position
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryTablesPrimaryKeys(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -403,7 +403,7 @@ class PostgreSQL:
             order by tc.constraint_name,
                      tc.table_name,
                      kc.ordinal_position
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryTablesUniques(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -439,7 +439,7 @@ class PostgreSQL:
             order by tc.constraint_name,
                      tc.table_name,
                      kc.ordinal_position
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryTablesIndexes(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -471,7 +471,7 @@ class PostgreSQL:
             {0}
             order by t.tablename,
                      t.indexname
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryDataLimited(self, p_query, p_count=-1):
 
@@ -484,7 +484,7 @@ class PostgreSQL:
             select *
             from ( {0} ) t
             {1}
-        '''.format(p_query,v_filter),True)
+        '''.format(p_query,v_filter), True)
 
     def QueryTableRecords(self, p_column_list, p_table, p_filter, p_count=-1):
 
@@ -502,7 +502,7 @@ class PostgreSQL:
                 p_table,
                 p_filter,
                 v_limit
-            )
+            ), True
         )
 
     def QueryFunctions(self, p_all_schemas=False, p_schema=None):
@@ -527,7 +527,7 @@ class PostgreSQL:
             where 1 = 1
             {0}
             order by 1
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryFunctionFields(self, p_function, p_schema):
 
@@ -553,7 +553,7 @@ class PostgreSQL:
                 ) x
                 where length(trim(x.name)) > 0
                 order by 1 desc, 2 asc
-            '''.format(p_schema, p_function))
+            '''.format(p_schema, p_function), True)
         else:
             return self.v_connection.Query('''
                 select y.type::character varying as type,
@@ -576,7 +576,7 @@ class PostgreSQL:
                 ) x
                 where length(trim(x.name)) > 0
                 order by 1 desc, 2 asc
-            '''.format(self.v_schema.lower(), p_function))
+            '''.format(self.v_schema.lower(), p_function), True)
 
     def GetFunctionDefinition(self, p_function):
 
@@ -614,7 +614,7 @@ class PostgreSQL:
             where 1 = 1
             {0}
             order by 1
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
         for i in range(0, len(v_table.Rows)):
             v_table.Rows[i]['current_value'] = self.v_connection.ExecuteScalar(
@@ -642,7 +642,7 @@ class PostgreSQL:
             where 1 = 1
             {0}
             order by table_schema, table_name
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryViewFields(self, p_table=None, p_all_schemas=False, p_schema=None):
 
@@ -676,7 +676,7 @@ class PostgreSQL:
             where 1 = 1
             {0}
             order by c.table_name, c.ordinal_position
-        '''.format(v_filter))
+        '''.format(v_filter), True)
 
     def QueryViewDefinition(self, p_view, p_schema):
 
@@ -1032,7 +1032,7 @@ class SQLite:
             select name as table_name
 		    from sqlite_master
 			where type = 'table'
-        ''')
+        ''', True)
 
     def QueryTablesFields(self, p_table=None):
 
@@ -1055,7 +1055,7 @@ class SQLite:
             v_tables = self.QueryTables()
 
         for v_table in v_tables.Rows:
-            v_table_columns_tmp = self.v_connection.Query("pragma table_info('{0}')".format(v_table['table_name']))
+            v_table_columns_tmp = self.v_connection.Query("pragma table_info('{0}')".format(v_table['table_name']), True)
 
             v_table_columns = Spartacus.Database.DataTable()
             v_table_columns.Columns = [
@@ -1126,7 +1126,7 @@ class SQLite:
             v_tables = self.QueryTables()
 
         for v_table in v_tables.Rows:
-            v_fks_tmp = self.v_connection.Query("pragma foreign_key_list('{0}')".format(v_table['table_name']))
+            v_fks_tmp = self.v_connection.Query("pragma foreign_key_list('{0}')".format(v_table['table_name']), True)
 
             v_fks = Spartacus.Database.DataTable()
             v_fks.Columns = [
@@ -1175,7 +1175,7 @@ class SQLite:
             v_tables = self.QueryTables()
 
         for v_table in v_tables.Rows:
-            v_pks_tmp = self.v_connection.Query("pragma table_info('{0}')".format(v_table['table_name']))
+            v_pks_tmp = self.v_connection.Query("pragma table_info('{0}')".format(v_table['table_name']), True)
 
             v_pks = Spartacus.Database.DataTable()
             v_pks.Columns = [
@@ -1207,20 +1207,20 @@ class SQLite:
         ]
 
         if p_table:
-            v_tables = self.v_connection.Query("""
+            v_tables = self.v_connection.Query('''
                 select name,
                        sql
                 from sqlite_master
                 where type = 'table'
                   and name = '{0}'
-            """.format(p_table))
+            '''.format(p_table), True)
         else:
-            v_tables = self.v_connection.Query("""
+            v_tables = self.v_connection.Query('''
                 select name,
                        sql
                 from sqlite_master
                 where type = 'table'
-            """)
+            ''', True)
 
         v_regex = re.compile(r"\s+")
 
@@ -1249,7 +1249,7 @@ class SQLite:
             SELECT *
             from ( {0} ) t
             {1}
-        '''.format(p_query,v_filter),True)
+        '''.format(p_query,v_filter), True)
 
     def QueryTableRecords(self, p_column_list, p_table, p_filter, p_count=-1):
 
@@ -1267,7 +1267,7 @@ class SQLite:
                 p_table,
                 p_filter,
                 v_limit
-            )
+            ), True
         )
 
     def QueryFunctions(self):
