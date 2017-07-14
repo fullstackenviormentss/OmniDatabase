@@ -57,12 +57,13 @@ class Generic(object):
                             p_user,
                             p_password,
                             p_conn_id=0,
-                            p_alias=''):
+                            p_alias='',
+                            p_foreignkeys=True):
 
         if p_db_type == 'postgresql':
             return PostgreSQL(p_server, p_port, p_service, p_user, p_password, p_conn_id, p_alias)
         if p_db_type == 'sqlite':
-            return SQLite(p_service, p_conn_id, p_alias)
+            return SQLite(p_service, p_conn_id, p_alias, p_foreignkeys)
 
 '''
 ------------------------------------------------------------------------
@@ -914,7 +915,7 @@ SQLite
 ------------------------------------------------------------------------
 '''
 class SQLite:
-    def __init__(self, p_service, p_conn_id=0, p_alias=''):
+    def __init__(self, p_service, p_conn_id=0, p_alias='', p_foreignkeys=True):
         self.v_alias = p_alias
         self.v_db_type = 'sqlite'
         self.v_conn_id = p_conn_id
@@ -922,7 +923,7 @@ class SQLite:
         self.v_port = ''
         self.v_service = p_service
         self.v_user = ''
-        self.v_connection = Spartacus.Database.SQLite(p_service)
+        self.v_connection = Spartacus.Database.SQLite(p_service, p_foreignkeys)
 
         self.v_has_schema = False
         self.v_has_functions = False

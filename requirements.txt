@@ -1,1 +1,1 @@
-Spartacus>=0.24
+Spartacus>=0.25
