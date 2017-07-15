@@ -864,6 +864,8 @@ LANGUAGE plpgsql
 --ROWS result_rows
 AS
 $function$
+--DECLARE
+-- variables
 BEGIN
 -- definition
 END;
