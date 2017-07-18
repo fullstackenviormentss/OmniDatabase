@@ -245,19 +245,20 @@ class PostgreSQL:
             select schema_name,
                    row_number() over() as sort
             from (
-            select schema_name
-            from information_schema.schemata
-            where schema_name in ('public', 'pg_catalog', 'information_schema')
-            order by schema_name desc
+            select nspname as schema_name
+            from pg_catalog.pg_namespace
+            where nspname in ('public', 'pg_catalog', 'information_schema')
+            order by nspname desc
             ) x
             union all
             select schema_name,
                    3 + row_number() over() as sort
             from (
-            select schema_name
-            from information_schema.schemata
-            where schema_name not in ('public', 'pg_catalog', 'information_schema')
-            order by schema_name asc
+            select nspname as schema_name
+            from pg_catalog.pg_namespace
+            where nspname not in ('public', 'pg_catalog', 'information_schema', 'pg_toast')
+              and nspname not like 'pg%%temp%%'
+            order by nspname desc
             ) x
             ) y
             order by sort
