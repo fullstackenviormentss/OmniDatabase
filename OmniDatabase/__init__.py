@@ -481,6 +481,7 @@ class PostgreSQL:
             self.v_connection.Open()
             v_data = self.v_connection.QueryBlock(p_query, p_count, True)
             self.v_connection.Close()
+            return v_data
         else:
             return self.v_connection.Query(p_query, True)
 
@@ -1244,6 +1245,7 @@ class SQLite:
             self.v_connection.Open()
             v_data = self.v_connection.QueryBlock(p_query, p_count, True)
             self.v_connection.Close()
+            return v_data
         else:
             return self.v_connection.Query(p_query, True)
 
